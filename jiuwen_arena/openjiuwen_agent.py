@@ -113,7 +113,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--results-dir", required=True)
     p.add_argument("--workspace", required=True)
     p.add_argument("--max-iterations", type=int, default=100)
-    p.add_argument("--browser-deadline", type=int, default=600)
+    p.add_argument("--browser-deadline", type=int, default=900)
     p.add_argument("--max-output-tokens", type=int, default=16384)
     p.add_argument("--start-url", action="append", default=[])
     return p.parse_args()

@@ -40,7 +40,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--tag", default="run", help="results go to results/jiuwen_arena/<task_id>_<tag>/")
     p.add_argument("--max-iterations", type=int, default=100, help="agent model calls; 0 = no cap")
     p.add_argument("--time-budget", type=int, default=1800, help="seconds for the agent; 0 = no limit")
-    p.add_argument("--browser-deadline", type=int, default=600,
+    p.add_argument("--browser-deadline", type=int, default=900,
                    help="agent-core's own per-task deadline in seconds, the same for every task "
                         "(agent-core gives 240 to tasks it judges simple, 600 to complex ones)")
     p.add_argument("--max-output-tokens", type=int, default=16384,
