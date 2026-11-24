@@ -1,0 +1,7 @@
+# agent-core and what the agent process needs; install into .venv-agent (Python 3.12):
+#   uv pip install --python .venv-agent/bin/python -r jiuwen_arena/requirements-agent.txt
+# The pin is agent-core develop as of 2026-11-23. Moving it: change the commit, then run
+#   .venv-agent/bin/python -m pytest tests/test_jiuwen_arena_agent.py
+openjiuwen @ git+https://github.com/kwangyy/agent-core@45dc1f0ec2c38986604216e08bd481b7a4daced3
+python-dotenv
+pytest

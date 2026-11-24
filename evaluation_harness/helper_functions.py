@@ -2,6 +2,7 @@
 import json
 from typing import Any
 from urllib.parse import urlparse
+import os
 
 import requests
 from playwright.sync_api import CDPSession, Page
@@ -159,7 +160,7 @@ def llm_fuzzy_match(pred: str, reference: str, question: str) -> float:
     ]
 
     response = generate_from_openai_chat_completion(
-        model="gpt-4-1106-preview",
+        model=os.environ.get("GRADER_MODEL", "gpt-4-1106-preview"),
         messages=messages,
         temperature=0,
         max_tokens=768,
@@ -194,7 +195,7 @@ def llm_ua_match(pred: str, reference: str, question: str) -> float:
     ]
 
     response = generate_from_openai_chat_completion(
-        model="gpt-4-1106-preview",
+        model=os.environ.get("GRADER_MODEL", "gpt-4-1106-preview"),
         messages=messages,
         temperature=0,
         max_tokens=768,
