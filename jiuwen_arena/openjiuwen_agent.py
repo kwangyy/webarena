@@ -49,13 +49,48 @@ public internet, and their data, not your own knowledge, decides it.
 
 - Do exactly what the task asks, with the exact values it gives; do not change anything it did not ask for.
 - Dates, counts and rankings come from the site's own data (its reports, filters, order history, search).
+- Zero is an answer. When a search, filter or page shows no matching items (no results, "0 records found", an \
+empty list), check once that you searched in the right place with the right terms -- for example that the same \
+search finds something for a term you know is there -- and then submit 0 (or 'None', as the task asks). Do not keep \
+searching other places for a different result.
+- Answer from what the site shows, not from what you think the task's author expected. A simple or empty-looking \
+answer (0, None, a single item) is as likely to be right as any other; do not doubt it for being simple. Once you \
+have checked something, do not check it again: decide and act.
 - When the task is to change something, do it completely and leave the browser on the page that shows the result.
 - End by calling submit_answer exactly once. For a question, the answer is only the requested information, \
 exactly as the site shows it. If the task is impossible here, submit 'N/A'.
 """
 
 
-def build_model() -> Model:
+def set_browser_deadline(seconds: int) -> None:
+    """One deadline for every task, instead of agent-core's 240 s / 600 s split.
+
+    agent-core's browser runtime calls a task "complex" (600 s) when its text
+    contains words such as filter, sort or cart, and "simple" (240 s) otherwise,
+    so most WebArena questions got 240 s. Both module constants are read when a
+    task starts, so setting them here is enough. The run as a whole is also
+    capped by BROWSER_TIMEOUT_S (agent-core default 600), which is raised to
+    match when the deadline is longer. Raises if agent-core renames them.
+    """
+    from openjiuwen.harness.tools.browser_move.playwright_runtime import runtime as browser_runtime
+
+    names = ("_BROWSER_SIMPLE_TASK_DEADLINE_S", "_BROWSER_COMPLEX_TASK_DEADLINE_S")
+    missing = [n for n in names if not hasattr(browser_runtime, n)]
+    if missing:
+        raise RuntimeError(f"agent-core no longer has {', '.join(missing)}; update set_browser_deadline")
+    for name in names:
+        setattr(browser_runtime, name, float(seconds))
+    if seconds > int(os.environ.get("BROWSER_TIMEOUT_S") or 600):
+        os.environ["BROWSER_TIMEOUT_S"] = str(seconds)
+
+
+def build_model(max_output_tokens: int = 0) -> Model:
+    """The agent's model on OpenRouter.
+
+    max_output_tokens caps one model call, thinking included. agent-core's
+    browser agent uses an explicit cap as given and otherwise sets 8192, which
+    a thinking model can spend on one step without producing a tool call.
+    """
     client = ModelClientConfig(client_provider="OpenRouter", api_key=os.environ["OPENROUTER_API_KEY"],
                                api_base=os.environ["OPENROUTER_API_BASE"])
     name = os.environ["MODEL_NAME"].strip().strip('"')
@@ -64,7 +99,10 @@ def build_model() -> Model:
     extra_body = {"provider": PROVIDER_PREFERENCE}
     if REASONING_EFFORT:
         extra_body["reasoning"] = {"effort": REASONING_EFFORT}
-    return Model(model_client_config=client, model_config=ModelRequestConfig(model=name, extra_body=extra_body))
+    request = ModelRequestConfig(model=name, extra_body=extra_body)
+    if max_output_tokens > 0:
+        request.max_tokens = max_output_tokens
+    return Model(model_client_config=client, model_config=request)
 
 
 def parse_args() -> argparse.Namespace:
@@ -75,6 +113,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--results-dir", required=True)
     p.add_argument("--workspace", required=True)
     p.add_argument("--max-iterations", type=int, default=100)
+    p.add_argument("--browser-deadline", type=int, default=600)
+    p.add_argument("--max-output-tokens", type=int, default=16384)
     p.add_argument("--start-url", action="append", default=[])
     return p.parse_args()
 
@@ -96,12 +136,13 @@ async def run(args: argparse.Namespace) -> None:
     with open(args.instruction_file, encoding="utf-8") as f:
         instruction = f.read().strip()
     os.makedirs(args.workspace, exist_ok=True)
+    set_browser_deadline(args.browser_deadline)
 
     submit = SubmitAnswerTool(args.results_dir)
     trajectory_path = os.path.join(args.results_dir, "trajectory.jsonl")
     trajectory_rail = TrajectoryStreamRail(trajectory_path)
     agent = create_browser_agent(
-        build_model(),
+        build_model(args.max_output_tokens),
         system_prompt=DEFAULT_BROWSER_AGENT_SYSTEM_PROMPT["en"] + WEBARENA_RULES,
         tools=[submit],
         rails=[trajectory_rail],
@@ -117,7 +158,7 @@ async def run(args: argparse.Namespace) -> None:
 
     session_id = f"webarena-{args.task_id}-{uuid.uuid4().hex[:6]}"
     print(f"Running browser agent (model={os.environ['MODEL_NAME']}, cdp={args.cdp_url}, "
-          f"max_iterations={args.max_iterations or 'unlimited'})...", flush=True)
+          f"max_iterations={args.max_iterations or 'unlimited'}, deadline={args.browser_deadline}s, max_output_tokens={args.max_output_tokens})...", flush=True)
     result = None
     await Runner.start()
     try:

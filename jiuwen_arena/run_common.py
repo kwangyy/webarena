@@ -30,6 +30,8 @@ def run_agent_child(args: argparse.Namespace, cdp_url: str, task: dict[str, Any]
     cmd = [AGENT_PYTHON, CHILD, "--task-id", str(task["task_id"]), "--cdp-url", cdp_url,
            "--instruction-file", instruction_file, "--results-dir", results_dir,
            "--max-iterations", str(args.max_iterations),
+           "--browser-deadline", str(args.browser_deadline),
+           "--max-output-tokens", str(args.max_output_tokens),
            # One workspace per run: openjiuwen locks its workspace across processes.
            "--workspace", os.path.join(results_dir, "workspace")]
     for url in start_urls:

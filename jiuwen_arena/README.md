@@ -44,7 +44,13 @@ All commands run from the repository root, in WSL or Linux.
    uv venv -p 3.10 .venv
    uv pip install --python .venv/bin/python -r requirements.txt python-dotenv pytest
    uv pip install --python .venv/bin/python -e .
+   .venv/bin/python -c "import nltk, sys; [nltk.download(r, download_dir=sys.prefix + '/nltk_data') for r in ('punkt', 'punkt_tab')]"
    ```
+
+   The last line fetches NLTK's tokenizer data. WebArena's `must_include` grader splits the answer into words
+   with it whenever the expected answer is a single item (for example `"2"`); without it the grader raises
+   `LookupError: Resource 'punkt_tab' not found`, which `run_task.py` records as a score of 0 with the error in
+   `grade_error`.
 
 2. **The agent's environment**, plus Node.js on the PATH (agent-core starts Playwright MCP with `npx`):
 

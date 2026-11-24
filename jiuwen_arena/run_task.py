@@ -40,6 +40,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--tag", default="run", help="results go to results/jiuwen_arena/<task_id>_<tag>/")
     p.add_argument("--max-iterations", type=int, default=100, help="agent model calls; 0 = no cap")
     p.add_argument("--time-budget", type=int, default=1800, help="seconds for the agent; 0 = no limit")
+    p.add_argument("--browser-deadline", type=int, default=600,
+                   help="agent-core's own per-task deadline in seconds, the same for every task "
+                        "(agent-core gives 240 to tasks it judges simple, 600 to complex ones)")
+    p.add_argument("--max-output-tokens", type=int, default=16384,
+                   help="output tokens per model call, thinking included (agent-core's browser agent "
+                        "uses 8192 when none is given)")
     p.add_argument("--chrome-path", default="", help="Chromium binary (default: CHROME_PATH or newest Playwright one)")
     p.add_argument("--headed", action="store_true", help="show the browser window")
     p.add_argument("--no-renew-login", action="store_true",
@@ -89,7 +95,8 @@ def run(args: argparse.Namespace) -> int:
     urls = start_urls(task)
 
     record: dict = {"task_id": args.task_id, "sites": task["sites"], "intent": task["intent"],
-                    "eval_types": task["eval"]["eval_types"], "benchmark": "webarena"}
+                    "eval_types": task["eval"]["eval_types"], "benchmark": "webarena",
+                    "browser_deadline_s": args.browser_deadline, "max_output_tokens": args.max_output_tokens}
     browser = TaskBrowser(args.chrome_path, headless=not args.headed)
     try:
         browser.start()

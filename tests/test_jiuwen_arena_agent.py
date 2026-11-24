@@ -54,3 +54,27 @@ def test_playwright_mcp_gets_the_cdp_url():
 def test_query_lists_start_tabs():
     q = agent_mod.build_query("Do X", ["http://a", "http://b"])
     assert "Do X" in q and "- http://a" in q and "- http://b" in q
+
+
+def test_browser_deadline_is_the_same_for_every_task(monkeypatch):
+    from openjiuwen.harness.tools.browser_move.playwright_runtime import runtime as browser_runtime
+
+    monkeypatch.setattr(browser_runtime, "_BROWSER_SIMPLE_TASK_DEADLINE_S", 240.0)
+    monkeypatch.setattr(browser_runtime, "_BROWSER_COMPLEX_TASK_DEADLINE_S", 600.0)
+    monkeypatch.delenv("BROWSER_TIMEOUT_S", raising=False)
+    agent_mod.set_browser_deadline(600)
+    assert browser_runtime._BROWSER_SIMPLE_TASK_DEADLINE_S == 600.0
+    assert browser_runtime._BROWSER_COMPLEX_TASK_DEADLINE_S == 600.0
+    assert "BROWSER_TIMEOUT_S" not in os.environ  # 600 is agent-core's own default
+    agent_mod.set_browser_deadline(900)
+    assert browser_runtime._BROWSER_SIMPLE_TASK_DEADLINE_S == 900.0
+    assert os.environ["BROWSER_TIMEOUT_S"] == "900"
+
+
+def test_browser_agent_keeps_our_output_limit():
+    from openjiuwen.harness.subagents import browser_agent
+
+    ours = browser_agent._browser_model_with_temperature(agent_mod.build_model(65536), 0.0)
+    assert ours.model_config.max_tokens == 65536
+    default = browser_agent._browser_model_with_temperature(agent_mod.build_model(), 0.0)
+    assert default.model_config.max_tokens == browser_agent.DEFAULT_BROWSER_AGENT_MAX_OUTPUT_TOKENS

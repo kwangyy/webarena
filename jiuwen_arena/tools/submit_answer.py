@@ -26,7 +26,8 @@ DESCRIPTION = (
     "do it completely first, leave the browser on the page that shows the result, then submit a short answer "
     "such as 'Done'.\n"
     "- If the task cannot be done or the information does not exist on these websites, submit 'N/A'. Check "
-    "properly first: hard to find is not missing."
+    "properly first: hard to find is not missing.\n"
+    "- A count of zero is a valid answer: when the right search or page shows no matching items, submit '0'."
 )
 
 
