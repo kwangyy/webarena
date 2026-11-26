@@ -36,6 +36,10 @@ def run_agent_child(args: argparse.Namespace, cdp_url: str, task: dict[str, Any]
            "--workspace", os.path.join(results_dir, "workspace")]
     for url in start_urls:
         cmd += ["--start-url", url]
+    if getattr(args, "feasibility_gate", False):
+        cmd.append("--feasibility-gate")
+    if getattr(args, "vision", False):
+        cmd.append("--vision")
     env = {**os.environ, "PYTHONIOENCODING": "utf-8",
            # openjiuwen opens <cwd>/logs/browser_agent.log with mode "w": one per run.
            "OPENJIUWEN_BROWSER_AGENT_LOG_FILE": os.path.join(results_dir, "browser_agent.log"),

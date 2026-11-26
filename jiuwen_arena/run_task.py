@@ -43,9 +43,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--browser-deadline", type=int, default=900,
                    help="agent-core's own per-task deadline in seconds, the same for every task "
                         "(agent-core gives 240 to tasks it judges simple, 600 to complex ones)")
-    p.add_argument("--max-output-tokens", type=int, default=16384,
+    p.add_argument("--max-output-tokens", type=int, default=4096,
                    help="output tokens per model call, thinking included (agent-core's browser agent "
                         "uses 8192 when none is given)")
+    p.add_argument("--vision", action="store_true",
+                   help="give the agent's model image input: the screenshot tools are enabled")
+    p.add_argument("--feasibility-gate", action="store_true",
+                   help="run the pre-task feasibility gate before the agent (jiuwen_arena/feasibility_gate.py)")
     p.add_argument("--chrome-path", default="", help="Chromium binary (default: CHROME_PATH or newest Playwright one)")
     p.add_argument("--headed", action="store_true", help="show the browser window")
     p.add_argument("--no-renew-login", action="store_true",
@@ -83,7 +87,7 @@ def run(args: argparse.Namespace) -> int:
         raise SystemExit(f"{AGENT_PYTHON} not found; create .venv-agent (jiuwen_arena/README.md).")
     results_dir = os.path.join(RESULTS_ROOT, f"{args.task_id}_{args.tag}")
     os.makedirs(results_dir, exist_ok=True)
-    for stale in (ANSWER_FILE, FINAL_URL_FILE, "result.json"):
+    for stale in (ANSWER_FILE, FINAL_URL_FILE, "result.json", "feasibility_gate.json"):
         if os.path.exists(os.path.join(results_dir, stale)):
             os.remove(os.path.join(results_dir, stale))
 
@@ -96,7 +100,8 @@ def run(args: argparse.Namespace) -> int:
 
     record: dict = {"task_id": args.task_id, "sites": task["sites"], "intent": task["intent"],
                     "eval_types": task["eval"]["eval_types"], "benchmark": "webarena",
-                    "browser_deadline_s": args.browser_deadline, "max_output_tokens": args.max_output_tokens}
+                    "browser_deadline_s": args.browser_deadline, "max_output_tokens": args.max_output_tokens,
+                    "vision": args.vision}
     browser = TaskBrowser(args.chrome_path, headless=not args.headed)
     try:
         browser.start()
@@ -119,6 +124,10 @@ def run(args: argparse.Namespace) -> int:
             score, grade_error = 0.0, f"{exc!r}\n{traceback.format_exc()}"
             print(f"Grader error: {exc!r}", flush=True)
         print(f"RESULT score={score} agent={status}", flush=True)
+        gate_path = os.path.join(results_dir, "feasibility_gate.json")
+        if os.path.exists(gate_path):
+            with open(gate_path, encoding="utf-8") as f:
+                record["feasibility_gate"] = json.load(f)
         record.update({"score": score, "agent_status": status, "agent_seconds": agent_seconds,
                        "answer": answer, "answer_submitted": submitted, "grade_error": grade_error})
         save_run_record(results_dir, record)

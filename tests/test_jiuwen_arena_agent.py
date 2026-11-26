@@ -15,7 +15,37 @@ os.environ.setdefault("MODEL_NAME", "anthropic/claude-opus-5")
 
 from jiuwen_arena import openjiuwen_agent as agent_mod  # noqa: E402
 from jiuwen_arena.protocol import ANSWER_FILE  # noqa: E402
+from jiuwen_arena.tools import submit_answer as submit_mod  # noqa: E402
 from jiuwen_arena.tools.submit_answer import SubmitAnswerTool, write_fallback_answer  # noqa: E402
+
+
+STORE = "http://157.230.85.206:7770"
+
+
+def test_cat_filtered_store_page():
+    check = submit_mod.is_cat_filtered_store_page
+    assert check(STORE + "/clothing-shoes-jewelry.html?cat=145", STORE)
+    assert check(STORE + "/video-games.html?product_list_order=price&cat=236", STORE)
+    assert not check(STORE + "/clothing-shoes-jewelry/men/shoes.html", STORE)
+    assert not check(STORE + "/catalogsearch/result/?q=cat+toy", STORE)  # "cat" in a value, not a key
+    assert not check("http://157.230.85.206:7780/admin/x?cat=1", STORE)  # other site
+    assert not check(None, STORE) and not check(STORE + "/a.html?cat=1", None)
+
+
+def test_submit_answer_refuses_done_on_a_cat_page_once(tmp_path, monkeypatch):
+    monkeypatch.setattr(submit_mod, "front_tab_url", lambda cdp: STORE + "/video-games.html?cat=236")
+    tool = SubmitAnswerTool(str(tmp_path), cdp_url="http://127.0.0.1:1", shopping_base=STORE)
+    first = asyncio.run(tool.invoke({"answer": "Done"}))
+    assert not first.success and "?cat=" in first.error and tool.answer is None
+    assert not (tmp_path / ANSWER_FILE).exists()
+    second = asyncio.run(tool.invoke({"answer": "Done"}))
+    assert second.success and tool.answer == "Done"
+
+
+def test_submit_answer_checks_only_done(tmp_path, monkeypatch):
+    monkeypatch.setattr(submit_mod, "front_tab_url", lambda cdp: STORE + "/video-games.html?cat=236")
+    tool = SubmitAnswerTool(str(tmp_path), cdp_url="http://127.0.0.1:1", shopping_base=STORE)
+    assert asyncio.run(tool.invoke({"answer": "9.99"})).success
 
 
 def test_submit_answer_writes_the_answer(tmp_path):
@@ -78,3 +108,20 @@ def test_browser_agent_keeps_our_output_limit():
     assert ours.model_config.max_tokens == 65536
     default = browser_agent._browser_model_with_temperature(agent_mod.build_model(), 0.0)
     assert default.model_config.max_tokens == browser_agent.DEFAULT_BROWSER_AGENT_MAX_OUTPUT_TOKENS
+
+
+def test_feasibility_gate_verdict_tools_record_once():
+    from jiuwen_arena.feasibility_gate import _VerdictTool
+    holder = {}
+    infeasible = _VerdictTool("report_infeasible", True, holder)
+    feasible = _VerdictTool("report_feasible", False, holder)
+    assert asyncio.run(infeasible.invoke({"reason": "no such filter"})).success
+    assert holder == {"infeasible": True, "reason": "no such filter"}
+    asyncio.run(feasible.invoke({"reason": "changed my mind"}))  # a second verdict is ignored
+    assert holder["infeasible"] is True
+
+
+def test_submit_answer_record_by(tmp_path):
+    tool = SubmitAnswerTool(str(tmp_path))
+    tool.record("N/A", by="feasibility_gate")
+    assert json.loads((tmp_path / ANSWER_FILE).read_text()) == {"answer": "N/A", "by": "feasibility_gate"}

@@ -28,6 +28,12 @@ SITE_VARS = (
     ("__WIKIPEDIA__", "WIKIPEDIA"),
     ("__MAP__", "MAP"),
 )
+# Real-world hosts that test.raw.json writes where it means a placeholder.
+# Task 66's reference answers spell the reddit clone as http://www.reddit.com,
+# so they could never match a URL on the live host.
+HOST_ALIASES = (
+    ("http://www.reddit.com", "__REDDIT__"),
+)
 # browser_env/env_config.py asserts every one of these is set, HOMEPAGE included.
 REQUIRED_VARS = tuple(var for _, var in SITE_VARS) + ("HOMEPAGE",)
 
@@ -44,6 +50,8 @@ def load_task(task_id: int) -> dict[str, Any]:
                          "(see jiuwen_arena/README.md).")
     with open(RAW_CONFIG, encoding="utf-8") as f:
         raw = f.read()
+    for host, placeholder in HOST_ALIASES:
+        raw = raw.replace(host, placeholder)
     for placeholder, var in SITE_VARS:
         raw = raw.replace(placeholder, os.environ[var].strip().rstrip("/"))
     tasks = json.loads(raw)

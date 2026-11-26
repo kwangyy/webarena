@@ -42,7 +42,7 @@ All commands run from the repository root, in WSL or Linux.
 
    ```
    uv venv -p 3.10 .venv
-   uv pip install --python .venv/bin/python -r requirements.txt python-dotenv pytest
+   uv pip install --python .venv/bin/python -r requirements.txt python-dotenv pytest pytest-asyncio
    uv pip install --python .venv/bin/python -e .
    .venv/bin/python -c "import nltk, sys; [nltk.download(r, download_dir=sys.prefix + '/nltk_data') for r in ('punkt', 'punkt_tab')]"
    ```

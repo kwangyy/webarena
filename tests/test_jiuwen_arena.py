@@ -39,6 +39,14 @@ def test_missing_site_vars_stop_the_run(monkeypatch):
         tasks.load_task(0)
 
 
+def test_load_task_maps_real_reddit_host(monkeypatch):
+    for _, var in tasks.SITE_VARS:
+        monkeypatch.setenv(var, f"http://{var.lower()}.test")
+    monkeypatch.setenv("HOMEPAGE", "http://homepage.test")
+    refs = tasks.load_task(66)["eval"]["reference_answers"]["must_include"]
+    assert refs and all(r.startswith("http://reddit.test/f/books/") for r in refs)
+
+
 def test_storage_state_sites_and_start_urls():
     assert tasks.sites_of_storage_state("./.auth/gitlab.reddit_state.json") == ["gitlab", "reddit"]
     assert tasks.sites_of_storage_state("./.auth/shopping_admin_state.json") == ["shopping_admin"]
