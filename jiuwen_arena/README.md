@@ -89,6 +89,23 @@ All commands run from the repository root, in WSL or Linux.
    OPENAI_API_KEY=<openai key>
    ```
 
+4. **Lift the forum's hourly posting limit.** Postmill lets an account that is not *trusted* create only
+   3 posts an hour, and it counts posts by the same user or from the same IP. Every run posts as
+   `MarvelsGrantMan136` from one machine, so in a run with several posting tasks and no reset in between, the
+   fourth post within an hour fails with "You cannot post more. Wait a while before trying again." (rand100 lost
+   tasks 618, 634, 639 and 642 that way). Mark the account as trusted on the forum's docker host:
+
+   ```
+   docker exec -u postgres forum psql postmill -qAt -c "UPDATE users SET trusted = true WHERE username = 'MarvelsGrantMan136'"
+   ```
+
+   - **It does not survive a reset.** A fresh `forum` container starts with the account untrusted. Run the
+     command again after any restart, or reset with `jiuwen_arena/reset_sites.sh forum`, which runs it for you.
+   - **Some limits remain**, set in Postmill's `src/DataObject/SubmissionData.php` and `CommentData.php` in the
+     container: 15 posts and 10 comments per 5 minutes, for every account. WebArena's tasks stay well under
+     them: there are 5 comment tasks in all (409, 410, 650–652).
+   - **The tasks don't change.** Being trusted only removes the hourly cap; it changes no data a grader reads.
+
 ## Running
 
 The task ids are the `task_id`s in `config_files/test.raw.json` (0 to 811).
@@ -121,7 +138,9 @@ The task ids are the `task_id`s in `config_files/test.raw.json` (0 to 811).
   and exits with code 1 if any run produced no score.
 - Many tasks change the sites (orders, posts, settings), and the sites are shared. Runs in parallel can therefore
   disturb each other, and a site that earlier runs have changed can make later tasks fail. Reset the sites
-  between batches (`environment_docker/README.md`). `--max-parallel` defaults to 1.
+  between batches (`environment_docker/README.md`), or with `jiuwen_arena/reset_sites.sh forum shopping
+  shopping_admin`, which replaces those containers over SSH, sets the stores' base URLs, and trusts the forum
+  account as in setup step 4. `--max-parallel` defaults to 1.
 
 ## Tests
 

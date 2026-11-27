@@ -48,6 +48,10 @@ for site in "$@"; do
         forum|reddit)
             replace forum -p 9999:80 -d postmill-populated-exposed-withimg
             wait_ok forum 9999 300
+            # Trust the agents' account: Postmill limits untrusted users to 3 posts an hour (counted per user
+            # or per IP), which a run of several posting tasks without resets hits. Trusted users keep only the
+            # 15-posts-per-5-minutes limit. A fresh container starts untrusted, so this runs after every reset.
+            remote "docker exec -u postgres forum psql postmill -qAt -c \"UPDATE users SET trusted = true WHERE username = 'MarvelsGrantMan136' RETURNING 'trusted: ' || username\""
             ;;
         shopping)
             replace shopping -p 7770:80 -d shopping_final_0712
