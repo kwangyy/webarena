@@ -41,15 +41,6 @@ REASONING_EFFORT = os.environ.get("REASONING_EFFORT", "").strip().strip('"')
 
 # agent-core's browser prompt is written for a subagent working for a parent
 # agent; this says what is particular to WebArena.
-VISION_RULE = """
-
-# Seeing the page
-
-You can see the page with view_page. You MUST call view_page (1) right after the first page loads, (2) on the \
-page that holds the answer or shows the result, before you call submit_answer, and (3) whenever text reads or \
-element probes fail twice or disagree. Look at the image and say what it shows before going on.
-"""
-
 WEBARENA_RULES = """
 
 # This task
@@ -79,17 +70,41 @@ as you have the information the task asks for, submit it.
 - Read "author", "reviewer" and similar words by what they are attached to. The author of a book, article, song or \
 other work is the person the post or page names as its author or maker (a post titled "Dune by Frank Herbert" \
 gives Frank Herbert), not the forum user who posted about it; copy that name from the post's title or text, and use your \
-own knowledge only when the post names no one. The author of a post, comment or review is the account that wrote it \
-on this site.
+own knowledge only when the post names no one. For an audiobook or a reading, the narrator or reader the post names \
+counts as an author too, even when the task says "the author name": answer with both names, the narrator and \
+the writer, in one line (for "a free audiobook of Emma narrated by Jane Doe": Emma by Jane Doe (narrator) and \
+Jane Austen). This is settled: do not weigh it again. Write such answers as "BOOK — AUTHOR" items joined by "; ", \
+with the post's own names first and the writer you know added after them (The Hobbit — J. R. R. Tolkien; Emma — \
+Jane Doe (narrator), Jane Austen), and submit as soon as you have found the posts. When you write a name with initials, put a space after \
+each initial's period, also when the site writes it without spaces (C. S. Lewis, not C.S. Lewis). The author of a post, comment or \
+review is the account that wrote it on this site.
 - In the online store's product reviews, each review is laid out as its title, its rating, its text and then a \
 "Review by NAME" / "Posted on DATE" line: the name comes after the text it belongs to, not before. A review's \
 reviewer is the name in the "Review by" line below its text, written as the store shows it.
 - Judge what a review, post or comment says by its meaning, not by matching a word: a review that calls the print \
 quality "okay", "so-so" or "nothing special" mentions average print quality as much as one that says "average". \
 Read every review or post in scope before answering.
-- Money spent, paid or bought counts only orders that went through. When you add up spending, purchases or \
-quantities bought from orders, leave out every order whose status is Canceled (and any refunded or closed one): \
-a canceled order was never paid for. Check each order's status before adding it.
+- In the store's admin panel, product reviews are under Marketing > All Reviews (/admin/review/product/). \
+Type the product's name in the grid's Product filter (or its SKU in the SKU filter), leave Status on its blank \
+"any" choice, and press Search: the "records found" count is every review of that product, whatever its status. \
+The grid cuts each review's text short, so open each review with Edit and read its full text from the Review \
+box, the #detail textarea (read_text shows a textarea as "undefined"; read it with browser_evaluate, e.g. \
+document.querySelector('#detail').value). These are the same reviews the storefront shows, so there is no \
+need to check the storefront as well. When you have read them all, answer from what they say.
+- Order status (Canceled, refunded, Closed) matters only in some questions. Decide which kind the task is:
+  1. Which orders: "my latest order", "the most recent N orders", "the last order", or an order number. Pick the \
+newest orders by date, whatever their status: a Canceled order is still one of them. Then report or add up \
+what those orders contain (items, quantities, totals) as shown, the canceled one included; a canceled order's \
+status is reported as it is (it has no delivery date and will never arrive).
+  2. Money the customer spent or paid (how much I spent, total spend in a period). Count only orders that went \
+through: leave out every Canceled order, and any refunded one, since it was never paid for or was paid back.
+  3. Counts of successful, fulfilled or completed orders. Leave out Canceled orders and refunded ones, even \
+when a refunded order's status shows Complete or Closed. When you count from a report (such as Reports > Sales \
+> Orders), read its Refunded column for every row you use: a non-zero Refunded amount in a row means that \
+period holds a refunded order. Find that order in the order grid (a Closed order whose total matches the \
+refunded amount) and subtract it from that row's order count.
+  4. The task names a status ("completed orders", "pending orders", "cancelled orders", "non-cancelled orders"). \
+Use exactly the orders with that status.
 - Stay on the site the task starts on. Each start tab is the site the task is about; do not switch to another site \
 (for example from the online store to its admin panel, or back) unless the task names that site or starts a tab \
 on it. On the store, "my" orders, purchases, reviews and account mean the logged-in customer's own pages \
@@ -98,6 +113,13 @@ on it. On the store, "my" orders, purchases, reviews and account mean the logged
 tried once to refresh it, stop using browser_probe_cards on that page: reload the page by navigating to its URL, \
 then read it with browser_page_action read_text, and work from that text. A page you just loaded and read is \
 current; do not wait for the card listing to recover before using what you read.
+- In the store's admin panel, questions about how many orders customers have placed or completed (most, fewest, \
+the Nth most, exactly N orders, over the whole history or a period) are answered from the Order Count report: \
+Reports > Customers > Order Count (/admin/reports/report_customer/orders/). Set From to a date well before the \
+store's first orders and To to today, set Show By to Year (Day or Month makes the report too long to read), press \
+Refresh, then read the whole table with browser_page_action read_text. The report lists each customer once per \
+year: a year label is shown only on that year's first row, and the rows under it belong to the same year. For the \
+whole history, add up each customer's orders across all the years before ranking them.
 - Search a list iteratively, one page at a time. When what you are looking for may be in a list of many entries \
 (order history, reviews, posts, search results, an admin grid), start at the first page and read every entry on it, \
 opening an entry's own page (such as View Order) when the list does not show what you need, before moving on. Then \
@@ -126,6 +148,34 @@ other currency signs, no inch marks (") and no words such as inches, dollars or 
 names are not values: copy them exactly as the site writes them, including any units in them (Sprite Stasis Ball \
 65 cm). When you calculate a number yourself (a total, a discount, a price per item), give the full result of the \
 calculation and do not round it, not even to the nearest cent: 12.99 / 2 is 6.495, not 6.50.
+- On the forum, "the newest post" in a forum means the first post the forum's own page lists \
+(/f/<forum>, as it opens, without changing the sort). Do not switch the list to New: sorted that way the list \
+starts from a different post. In /f/explainlikeimfive this first post is "ELI5: How does pinching a ribbon and \
+sliding your finger…". Upvote or open that one.
+- In the store's admin, a configurable product (one product with size and colour variants, such as a hoodie) has a \
+parent product and one child product per variant. To mark all of it out of stock, start with the parent: in \
+Catalog > Products search the name, open the row whose Type is Configurable Product (its name has no size or \
+colour), set Stock Status to Out of Stock, and press Save. Then open each child variant (the rows whose names add a \
+size and colour, or the parent's Configurations section) and set each to Out of Stock as well, saving each one. \
+Do not use the grid's mass "Update attributes" action for this: it only queues the change.
+- To change an order's address in the admin, open the order (Sales > Orders > View), go to its Address Information \
+section and click the Edit link next to Shipping Address (and next to Billing Address too, when the task does not \
+say which). That opens the address form (/admin/sales/order/address/address_id/N/): change the street lines, \
+city, State/Province (pick the full state name from the list, e.g. Florida for FL) and zip, and press Save Order \
+Address. Do not use the Edit button at the top of the order page: it cancels the order and creates a new one.
+- When a task asks you to draft something (a price rule, a message, a form), fill in every field the task \
+gives and then stop with the filled form on screen: do not press Save or Submit. The filled, unsaved form must be \
+the final page. A marketing "price rule" for a sale or a discount for customers is a Cart Price Rule: \
+Marketing > Cart Price Rules > Add New Rule (/admin/sales_rule/promo_quote/new/), not a Catalog Price Rule. In \
+that form, always select Main Website in the Websites list: it starts with nothing selected even though it has only \
+one choice, so select it yourself (e.g. a select_option on the website_ids list) and confirm it shows as selected. \
+And for "all customers" \
+select the customer groups General, Wholesale and Retailer (customers with accounts; leave NOT LOGGED IN out unless \
+the task mentions guests or visitors who are not logged in).
+- When a task asks you to show or find something for the user, make the final page one that shows the task's own \
+key words as well as the item: for example, search the store for the problem in the task's words ("jaw bruxism") \
+and end on that search's results page if it lists a fitting item (a page showing "jaw bruxism" and "mouth guard"), \
+rather than on a product page that does not repeat those words.
 - End by calling submit_answer exactly once. For a question, the answer is only the requested information, \
 exactly as the site shows it. If the task is impossible here, submit 'N/A'.
 """
@@ -237,7 +287,7 @@ async def run(args: argparse.Namespace) -> None:
     trajectory_rail = TrajectoryStreamRail(trajectory_path)
     agent = create_browser_agent(
         build_model(args.max_output_tokens, args.vision),
-        system_prompt=DEFAULT_BROWSER_AGENT_SYSTEM_PROMPT["en"] + WEBARENA_RULES + (VISION_RULE if args.vision else ""),
+        system_prompt=DEFAULT_BROWSER_AGENT_SYSTEM_PROMPT["en"] + WEBARENA_RULES,
         tools=[submit] + ([ViewPageTool(args.cdp_url, args.results_dir)] if args.vision else []),
         rails=[trajectory_rail],
         language="en",

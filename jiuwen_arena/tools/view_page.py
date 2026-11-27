@@ -25,8 +25,10 @@ JPEG_QUALITY = 70  # A 1280x720 viewport is then roughly 60-120 KB.
 
 DESCRIPTION = (
     "Take a screenshot of the browser's current page (the visible viewport) and see it as an image. "
-    "Use it when the page's text or element probes fail, come back empty or look inconsistent, or when the "
-    "answer depends on how the page looks. It does not change the page."
+    "It shows what text reads can leave unclear: whether a form's fields are filled, whether a report, filter or "
+    "search was applied, what a table or grid actually displays (or that it is empty), which option is selected, "
+    "and how the page looks (colours, images, layout). Use it when a text read is empty, cut off or contradictory, "
+    "or when you cannot tell from the text whether your last action worked. It does not change the page."
 )
 
 
