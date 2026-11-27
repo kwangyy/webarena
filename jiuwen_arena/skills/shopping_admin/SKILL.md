@@ -1,0 +1,25 @@
+---
+name: shopping_admin
+description: Guide to the store's admin panel (Magento admin, port 7780/admin): orders and order status, reports (Orders, Order Count, refunds), product reviews, product stock, editing order addresses, and drafting price rules. Load it for any task that starts on the admin panel.
+---
+
+# The store's admin panel (Magento admin, port 7780/admin)
+
+## Orders and order status
+- Order status (Canceled, refunded, Closed) matters only in some questions. Decide which kind the task is:
+  1. Which orders: "the latest order", "the most recent N orders", "the last order", or an order number. Pick the newest orders by date, whatever their status: a Canceled order is still one of them. Then report or add up what those orders contain (items, quantities, totals) as shown, the canceled one included.
+  2. Money a customer spent or paid. Count only orders that went through: leave out every Canceled order, and any refunded one.
+  3. Counts of successful, fulfilled or completed orders. Leave out Canceled orders and refunded ones, even when a refunded order's status shows Complete or Closed. When you count from a report (such as Reports > Sales > Orders), read its Refunded column for every row you use: a non-zero Refunded amount in a row means that period holds a refunded order. Find that order in the order grid (a Closed order whose total matches the refunded amount) and subtract it from that row's order count.
+  4. The task names a status ("completed orders", "pending orders", "cancelled orders", "non-cancelled orders"). Use exactly the orders with that status.
+- Questions about how many orders customers have placed or completed (most, fewest, the Nth most, exactly N orders, over the whole history or a period) are answered from the Order Count report: Reports > Customers > Order Count (/admin/reports/report_customer/orders/). Set From to a date well before the store's first orders and To to today, set Show By to Year (Day or Month makes the report too long to read), press Refresh, then read the whole table with browser_page_action read_text. The report lists each customer once per year: a year label is shown only on that year's first row, and the rows under it belong to the same year. For the whole history, add up each customer's orders across all the years before ranking them.
+- To change an order's address, open the order (Sales > Orders > View), go to its Address Information section and click the Edit link next to Shipping Address (and next to Billing Address too, when the task does not say which). That opens the address form (/admin/sales/order/address/address_id/N/): change the street lines, city, State/Province (pick the full state name from the list, e.g. Florida for FL) and zip, and press Save Order Address. Do not use the Edit button at the top of the order page: it cancels the order and creates a new one.
+
+## Product reviews
+- Product reviews are under Marketing > All Reviews (/admin/review/product/). Type the product's name in the grid's Product filter (or its SKU in the SKU filter), leave Status on its blank "any" choice, and press Search: the "records found" count is every review of that product, whatever its status. The grid cuts each review's text short, so open each review with Edit and read its full text from the Review box, the #detail textarea (read_text shows a textarea as "undefined"; read it with browser_evaluate, e.g. document.querySelector('#detail').value). These are the same reviews the storefront shows, so there is no need to check the storefront as well. When you have read them all, answer from what they say.
+
+## Products and stock
+- A configurable product (one product with size and colour variants, such as a hoodie) has a parent product and one child product per variant. To mark all of it out of stock, start with the parent: in Catalog > Products search the name, open the row whose Type is Configurable Product (its name has no size or colour), set Stock Status to Out of Stock, and press Save. Then open each child variant (the rows whose names add a size and colour, or the parent's Configurations section) and set each to Out of Stock as well, saving each one. Do not use the grid's mass "Update attributes" action for this: it only queues the change.
+
+## Drafting price rules
+- A marketing "price rule" for a sale or a discount for customers is a Cart Price Rule: Marketing > Cart Price Rules > Add New Rule (/admin/sales_rule/promo_quote/new/), not a Catalog Price Rule. When the task says draft, fill in every field it gives and stop with the filled form on screen: do not press Save.
+- In that form, always select Main Website in the Websites list: it starts with nothing selected even though it has only one choice, so select it yourself (e.g. a select_option on the website_ids list) and confirm it shows as selected. For "all customers" select the customer groups General, Wholesale and Retailer (customers with accounts; leave NOT LOGGED IN out unless the task mentions guests or visitors who are not logged in).
